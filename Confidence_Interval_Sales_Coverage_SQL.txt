@@ -1,0 +1,100 @@
+-- Confidence Interval for Sales Coverage
+
+-- Here is an attempt to predict the sales coverage of September 2016 based on sales data from August 2016
+-- The actual value will be compared with the confidence interval (from the lower limit to the upper limit) of the predicted value
+
+select
+	a3.product_no
+	, a3.year_mo
+	, a3.percentile
+	, cast(a3.cum_sales as float) - (1.96*sqrt( cast(a3.cum_sales as float) * (a3.cum_customers - a3.cum_sales) / a3.cum_customers ) ) ) / (b3.tot_sales) as lower_limit
+	, cast(a3.cum_sales as float) / b3.tot_sales as predicted_value
+	, cast(a3.cum_sales as float) + (1.96*sqrt( cast(a3.cum_sales as float) * (a3.cum_customers - a3.cum_sales) / a3.cum_customers ) ) ) / (b3.tot_sales) as upper_limit
+	, cast(a3.act_sales as float) / b3.tot_act_sales as actual_value
+from
+(
+select
+	a2.product_no
+	, a2.year_mo
+	, a2.percentile
+	, sum(a2.act_customers * a1.sales_rate) over (partition by a2.year_mo, a2.product_no order by a2.year_mo, a2.product_no, a2.percentile desc) as cum_sales
+	, sum(a2.act_customers) over (partition by a2.year_mo, a2.product_no order by a2.year_mo, a2.product_no, a2.percentile desc) as cum_customers
+	, sum(a2.act_sales) over (partition by a2.year_mo, a2.product_no order by a2.year_mo, a2.product_no, a2.percentile desc) as act_sales
+from
+(
+select
+	percentile as percentile
+	, sum(sales_flag) / count(*) as sales_rate
+from
+	percentile_score_table
+where
+	percentile between 1 and 100
+	and year_mo = 201608
+	and product_no in ('777')
+group by
+	1
+) as a1
+inner join
+(
+select
+	product_no as product_no
+	, year_mo as year_mo
+	, percentile as percentile
+	, count(*) as act_customers
+	, sum(sales_flag) as act_sales
+from
+	percentile_score_table
+where
+	percentile between 1 and 100
+	and year_mo = 201609
+	and product_no in ('777')
+group by
+	1, 2, 3
+) as a2
+on a1.percentile = a2.percentile
+) as a3
+,
+(
+select
+	sum(b2.act_customers * b1.sales_rate) as tot_sales
+	, sum(b2.act_sales) as tot_act_sales
+from
+(
+select
+	percentile as percentile
+	, sum(sales_flag) / count(*) as sales_rate
+from
+	percentile_score_table
+where
+	percentile between 1 and 100
+	and year_mo = 201608
+	and product_no in ('777')
+group by
+	1
+) as b1
+inner join
+(
+select
+	percentile as percentile
+	, count(*) as act_customers
+	, sum(sales_flag) as act_sales
+from
+	percentile_score_table
+where
+	percentile between 1 and 100
+	and year_mo = 201609
+	and product_no in ('777')
+group by
+	1
+) as b2
+on b1.percentile = b2.percentile
+) as b3
+order by
+	a3.percentile desc;
+
+-- Output
+-- product_no	year_mo	percentile	lower_limit	predicted_value	upper_limit	actual_value
+-- 777			201609	100			0.371		0.384			0.396		0.354
+-- 777			201609	99			0.463		0.477			0.492		0.449
+-- (skip down to the bottom row)
+-- 777			201609	1			0.979		1.000			1.021		1.000
