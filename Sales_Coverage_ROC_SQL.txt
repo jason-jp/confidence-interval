@@ -1,0 +1,74 @@
+-- ROC (Receiver Operating Characteristic) Curve
+
+-- Here is some code to compute the true positive rate and false positive rate for the ROC curve.
+-- https://en.wikipedia.org/wiki/Receiver_operating_characteristic
+
+select
+	b1.product_no
+	, b1.year_mo
+	, case when b1.percentile between 91 and 100 then 10 when b1.percentile >= 81 then 9 when b1.percentile >= 71 then 8 when b1.percentile >= 61 then 7 when b1.percentile >= 51 then 6 when b1.percentile >= 41 then 5 when b1.percentile >= 31 then 4 when b1.percentile >= 21 then 3 when b1.percentile >= 11 then 2 when b1.percentile between 1 and 10 then 1 else 0 as t
+	, cast(max(case when b1.percentile between 1 and 100 then b1.cum_sales else 0 end) as float)/max(b2.total_sales) as tpr
+	, cast(max(case when b1.percentile between 1 and 100 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales) as fpr
+from
+	(
+	select
+		a1.*
+		, sum((case when a1.percentile between 1 and 100 then sales else 0 end)) over (partition by year_mo, product_no, percentile desc) as cum_sales
+		, sum((case when a1.percentile between 1 and 100 then customers else 0 end) - (case when a1.percentile between 1 and 100 then sales else 0 end)) over (partition by year_mo, product_no, percentile desc) as cum_nosales
+	from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			year_mo = 201609
+			and product_no in ('777')
+		group by
+			1, 2, 3
+		) as a1
+	) as b1
+	,
+	(
+	select
+		sum(case when a2.percentile between 1 and 100 then sales else 0 end) as tot_sales
+		, sum((case when a2.percentile between 1 and 100 then customers else 0 end) - (case when a2.percentile between 1 and 100 then sales else 0 end)) as tot_nosales
+	from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			year_mo = 201609
+			and product_no in ('777')
+		group by
+			1, 2, 3
+		) as a2
+	) as b2
+group by
+	1, 2, 3
+order by
+	1, 2, 3 desc;
+	
+-- output
+
+-- product_no	year_mo	t	tpr		fpr
+-- 777			201609	10	0.35	0.10
+-- 777			201609	9	0.38	0.20
+-- 777			201609	8	0.47	0.30
+-- 777			201609	7	0.51	0.40
+-- 777			201609	6	0.60	0.50
+-- 777			201609	5	0.68	0.60
+-- 777			201609	4	0.76	0.70
+-- 777			201609	3	0.85	0.80
+-- 777			201609	2	0.91	0.90
+-- 777			201609	1	1.00	1.00
