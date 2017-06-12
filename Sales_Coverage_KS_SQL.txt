@@ -1,0 +1,67 @@
+-- K-S (Kolmogorov-Smirnoff) Statistics
+
+-- Here is some code to compute a K-S Statistic based on sales coverage for each percentile
+-- https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test
+
+select
+	b1.product_no
+	, b1.year_mo
+	, max( (cast(b1.cum_sales as float)/b2.total_sales) - (cast(b1.cum_nosales as float)/b2.total_nosales) ) as ks_value
+from
+	(
+	select
+		a1.*
+		, sum(sales) over (partition by year_mo, product_no order by year_mo, product_no, percentile desc) as cum_sales
+		, sum(customers - sales) over (partition by year_mo, product_no order by year_mo, product_no, percentile desc) as cum_nosales
+	from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			percentile between 1 and 100
+			and year_mo between 201609 and 201611
+			and product_no in ('777')
+		group by
+			1, 2, 3
+		) as a1
+	) as b1
+	inner join
+	(
+	select
+		year_mo
+		, sum(sales) as total_sales
+		, sum(customers - sales) as total_nosales
+	from
+		(
+		select
+			year_mo
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			percentile between 1 and 100
+			and year_mo between 201609 and 201611
+			and product_no in ('777')
+		group by
+			1
+		) as a2
+	group by a2.year_mo
+	) as b2
+	on b1.year_mo = b2.year_mo
+group by
+	1, 2
+order by
+	b1.year_mo;
+
+-- Output
+-- product_no	year_mo	ks_value
+-- 777			201609	0.819
+-- 777			201610	0.779
+-- 777			201611	0.742
