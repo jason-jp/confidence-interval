@@ -1,0 +1,71 @@
+-- Sales Coverage for Each Cutoff Percentage
+
+-- Here is some code to compute a certain month's sales coverage of a given product for any percentile of customers (determined by the cutoff percentage)
+
+select
+	b1.product_no
+	, b1.year_mo
+	, (101 - b1.percentile) as cutoff
+	, cast(b1.cum_sales as float) / b2.total_sales as coverage
+from
+	(
+	select
+		a1.*
+		, sum(sales) over (partition by year_mo, product_no, percentile desc) as cum_sales
+	from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+		from
+			percentile_score_table
+		where
+			year_mo between 201609 and 201610
+			and percentile between 81 and 100
+			and product_no in ('777', '888')
+		group by
+			1, 2, 3
+		) as a1
+	) as b1
+	inner join
+	(
+	select
+		year_mo
+		, product_no
+		, sum(sales_flag) as sales
+	from
+		(
+		select
+			year_mo
+			, prouct_no
+			, sum(sales_flag) as sales
+		from
+			percentile_score_table
+		where
+			year_mo between 201609 and 201610
+			and percentile between 1 and 100
+			and product_no in ('777', '888')
+		group by
+			1, 2
+		) as a2
+	group by
+		1, 2
+	) as b2
+	on b1.year_mo = b2.year_mo and b1.product_no = b2.product_no
+where
+	b1.percentile in ('91', '81')
+order by
+	1, 2, 3;
+
+-- Output
+-- product_no	year_mo	cut_off	coverage
+-- 777			201609	10		0.901
+-- 777			201609	20		0.935
+-- 777			201610	10		0.864
+-- 777			201610	20		0.909
+-- 888			201609	10		0.458
+-- 888			201609	20		0.637
+-- 888			201610	10		0.431
+-- 888			201610	20		0.614
