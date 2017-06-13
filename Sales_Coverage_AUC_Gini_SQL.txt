@@ -1,0 +1,152 @@
+-- AUC (Area Under the Curve) and Gini coefficient
+
+-- Here is some code to compute the AUC and Gini coefficient for the sales coverage, given a time period and product numbers.
+-- https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve
+-- https://en.wikipedia.org/wiki/Gini_coefficient
+
+select
+	product_no
+	, year_mo
+	, auc
+	, (( 2* auc ) - 1 ) as gini
+from
+	(
+	select
+		b1.product_no
+		, b1.year_mo
+		, (0.5 * (
+		(
+		( cast(max(case when b1.percentile between 81 and 90 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 91 and 100 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 71 and 80 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 81 and 90 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 61 and 70 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 71 and 80 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 51 and 60 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 61 and 70 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 41 and 50 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 51 and 60 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 31 and 40 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 41 and 50 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 21 and 30 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 31 and 40 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 11 and 20 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 21 and 30 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 1 and 10 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 11 and 20 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 91 and 100 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 81 and 90 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 81 and 90 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 71 and 80 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 71 and 80 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 61 and 70 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 61 and 70 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 51 and 60 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 51 and 60 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 41 and 50 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 41 and 50 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 31 and 40 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 31 and 40 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 21 and 30 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 21 and 30 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 11 and 20 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		-
+		(
+		( cast(max(case when b1.percentile between 11 and 20 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 1 and 10 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		+
+		(
+		( cast(max(case when b1.percentile between 1 and 10 then b1.cum_nosales else 0 end) as float)/max(b2.total_nosales)) * ( cast(max(case when b1.percentile between 1 and 10 then b1.cum_sales else 0 end) as float)/max(b2.total_sales))
+		)
+		)) as auc
+	from
+	(
+		select
+			a1.*
+			, sum((case when a1.percentile between 1 and 100 then sales else 0 end)) over (partition by year_mo, product_no order by year_mo, product_no, percentile desc) as cum_sales
+			, sum((case when a1.percentile between 1 and 100 then customers else 0 end) - (case when a1.percentile between 1 and 100 then sales else 0 end)) over (partition by year_mo, product_no order by year_mo, product_no, percentile desc) as cum_nosales
+		from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			year_mo between 201609 and 201611
+			and product_no in ('777')
+		group by
+			1, 2, 3
+		) as a1
+	) as b1
+	inner join
+	(
+	select
+		year_mo
+		, sum((case when a2.percentile between 1 and 100 then sales else 0 end)) as total_sales
+		, sum((case when a2.percentile between 1 and 100 then customers else 0 end) - (case when a2.percentile between 1 and 100 then sales else 0 end)) as total_nosales
+	from
+		(
+		select
+			year_mo
+			, product_no
+			, percentile
+			, sum(sales_flag) as sales
+			, count(*) as customers
+		from
+			percentile_score_table
+		where
+			year_mo between 201609 and 201611
+			and product_no in ('777')
+		group by
+			1, 2, 3
+		) as a2
+	group by 1
+	) as b2
+	on b1.year_mo = b2.year_mo
+group by
+	1, 2
+) c1
+order by year_mo;
+
+-- output
+
+-- product_no	year_mo		auc		gini
+-- 777			201609		0.922	0.844
+-- 777			201610		0.912	0.824
+-- 777			201611		0.908	0.816
